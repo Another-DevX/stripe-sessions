@@ -7,7 +7,7 @@ const { Resend } = require("resend");
 
 dotenv.config();
 const app = express();
-const PORT = 8080 || process.env.PORT;
+const PORT = process.env.PORT || 8080;
 const RPC_URL = process.env.RPC_URL;
 const FARRA_KEY = process.env.FARRA_KEY;
 const BASE_RPC_URL = process.env.BASE_RPC_URL;
