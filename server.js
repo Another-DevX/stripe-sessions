@@ -28,11 +28,6 @@ const OnrampSessionResource = Stripe.StripeResource.extend({
   }),
 });
 
-// const corsOptions = {
-//     origin: 'http://localhost:5173/',
-//     optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
-// }
-
 app.use(express.json());
 app.use(cors());
 app.use(express.static("public"));
@@ -82,10 +77,9 @@ const ABI = [
 
 // https://base-sepolia.blockscout.com/address/0xc0322f7E240D347f962bc0a9666dE968f4352895?tab=write_contract
 const getContract = () => {
-  return new ethers.Contract("0xc0322f7E240D347f962bc0a9666dE968f4352895", ABI, base_provider);
+  return new ethers.Contract("0xFf28015E395aD24EFAA1f0Ea33Bb409B043a0bea", ABI, signer);
 };
 const contract = getContract();
-const contractWithSigner = contract.connect(signer)
 
 app.post("/mint_by_stripe", async (req, res) => {
   try {
@@ -97,7 +91,7 @@ app.post("/mint_by_stripe", async (req, res) => {
       return result;
     });
     console.log('Calling transfer function...')
-    const transactionResponse = await contractWithSigner.claim(
+    const transactionResponse = await contract.claim(
       customer_wallet_address,
       1,
       "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
