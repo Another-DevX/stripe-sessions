@@ -3,17 +3,21 @@ const Stripe = require("stripe");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const ethers = require("ethers");
+const { Resend } = require("resend");
 
 dotenv.config();
 const app = express();
 const PORT = 8080 || process.env.PORT;
 const RPC_URL = process.env.RPC_URL;
 const FARRA_KEY = process.env.FARRA_KEY;
+const BASE_RPC_URL = process.env.BASE_RPC_URL;
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
 const provider = new ethers.JsonRpcProvider(RPC_URL)
 const base_provider = new ethers.JsonRpcProvider(BASE_RPC_URL);
 // Get write access as an account by getting the signer
 const signer = new ethers.Wallet(FARRA_KEY, base_provider);
+const resend = new Resend(RESEND_API_KEY);
 
 // This is your test secret API key.
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
@@ -73,13 +77,14 @@ app.post("/create-onramp-session", async (req, res) => {
 const ABI = [
   "function ownerOf(uint tokenId) view returns (address)",
   "function balanceOf(address addr) view returns (uint)",
-  "function claim(address _reciver, uint _quantity, address _currency, uint256 _pricePerToken)",
+  "function claim(address _receiver, uint256 _quantity, address _currency, uint256 _pricePerToken, (bytes32[],uint256,uint256,address) _allowlistProof, bytes _data)",
 ]
 
 // https://base-sepolia.blockscout.com/address/0xc0322f7E240D347f962bc0a9666dE968f4352895?tab=write_contract
-const contract = (contractAddress) => (new ethers.Contract(contractAddress, ABI, base_provider));
-console.log("Contract Address -->> ", contract("0xc0322f7E240D347f962bc0a9666dE968f4352895"));
-
+const getContract = () => {
+  return new ethers.Contract("0xc0322f7E240D347f962bc0a9666dE968f4352895", ABI, base_provider);
+};
+const contract = getContract();
 const contractWithSigner = contract.connect(signer)
 
 app.post("/mint_by_stripe", async (req, res) => {
@@ -87,17 +92,25 @@ app.post("/mint_by_stripe", async (req, res) => {
     const { tx_hash, customer_email, customer_wallet_address } = req.body;
     console.log("transaction_details: ", tx_hash);
     console.log("customer_email: ", customer_email);
-    const stripe_bought_tx = provider.getTransactionResult(tx_hash).then((result) => {
-      console.log("Transaction Result: ", result);
+    await provider.getTransactionReceipt(tx_hash).then((result) => {
+      console.log("Transaction Result: ", result.status);
       return result;
     });
-    console.log("stripe_bought_tx: ", stripe_bought_tx);
     console.log('Calling transfer function...')
     const transactionResponse = await contractWithSigner.claim(
       customer_wallet_address,
       1,
-      "0xf8b414eFD8CB72097edAb449CeAd5dB10Fc12d99",
-      "1000000000000000000"
+      "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+      "1000000",
+      [
+        [
+          "0x0000000000000000000000000000000000000000000000000000000000000000"
+        ],
+        "100000",
+        "1000000",
+        "0x036cbd53842c5426634e7929541ec2318f3dcf7e"
+      ],
+      "0x"
     )
     await transactionResponse.wait();
     // We could send a qr code to the user to scan and claim the ticket
@@ -106,6 +119,30 @@ app.post("/mint_by_stripe", async (req, res) => {
     res.send({
       transaction_hash: transactionResponse.hash,
     });
+  } catch (error) {
+    console.log("[ Error !!!]: ", error);
+    res.send({ message: "Error Occured" }).status(500);
+  }
+})
+
+app.post("/send-ticket", async (req, res) => {
+  try {
+    const { customer_email, customer_wallet_address } = req.body;
+    console.log("customer_email: ", customer_email);
+    console.log("customer_wallet_address: ", customer_wallet_address);
+    // send the ticket to the customer emai with sendgrid
+    const { data, error } = await resend.emails.send({
+      from: "Farra <nounish@ticket.dev>",
+      to: [customer_email],
+      subject: "Ticket Purchase Confirmation",
+      html: "<strong>it works!</strong>",
+    });
+    if (error) {
+      return res.status(400).json({ error });
+    }
+  
+    res.status(200).json({ data });
+    
   } catch (error) {
     console.log("[ Error !!!]: ", error);
     res.send({ message: "Error Occured" }).status(500);
