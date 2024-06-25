@@ -123,10 +123,9 @@ app.post("/send-ticket", async (req, res) => {
   try {
     const { customer_email, customer_wallet_address } = req.body;
     console.log("customer_email: ", customer_email);
-    console.log("customer_wallet_address: ", customer_wallet_address);
     // send the ticket to the customer emai with sendgrid
     const { data, error } = await resend.emails.send({
-      from: "Farra <nounish@ticket.dev>",
+      from: "Farra <nounish@synchub.site>",
       to: [customer_email],
       subject: "Ticket Purchase Confirmation",
       html: "<strong>it works!</strong>",
