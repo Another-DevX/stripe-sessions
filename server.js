@@ -43,7 +43,7 @@ app.post("/create-onramp-session", async (req, res) => {
         destination_currency: transaction_details["destination_currency"],
         destination_exchange_amount: transaction_details["destination_exchange_amount"],
         destination_network: "ethereum", // transaction_details["destination_network"],
-        wallet_addresses: { ethereum: "0xf8b414eFD8CB72097edAb449CeAd5dB10Fc12d99" }, // transaction_details["wallet_address"] },
+        wallet_addresses: transaction_details["wallet_address"]
       },
       customer_information: {
         email: customer_information["email"],
